@@ -324,50 +324,31 @@ jobs:
           fingerprints: ["78:cc:fd:4e:bf:9d:90:0c:e0:e3:9d:18:77:f6:fe:d6"]
       - attach_workspace:
           at: ~/
+      - restore_cache:
+          keys: [backend-build]
       - run:
           name: Install dependencies
           command: |
-            apk add --update --no-cache ansible tar gzip nodejs npm curl aws-cli
+            apk add --update --no-cache tar gzip nodejs npm tree aws-cli ansible curl rsync openssh
       - run:
-          name: Deploy Backend
+          name: Deploy backend
           command: |
-            pwd
             cd backend
-            
-            touch .env
-            echo NODE_ENV=production > ".env"
-            # echo VERSION: "1" >> ~/project/backend/.env
-            echo TYPEORM_CONNECTION=$TYPEORM_CONNECTION >> ".env"
-            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> ".env"
-            echo TYPEORM_ENTITIES=$TYPEORM_ENTITIES >> ".env"
-            echo TYPEORM_MIGRATIONS=$TYPEORM_MIGRATIONS >> ".env"
-            echo TYPEORM_MIGRATIONS_DIR=$TYPEORM_MIGRATIONS_DIR  >> ".env"
-            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> ".env"
-            echo TYPEORM_PORT=$TYPEORM_PORT >> ".env"
-            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> ".env"
-            echo TYPEORM_HOST=$TYPEORM_HOST >> ".env"
-            #cat ~/project/backend/.env
-            pwd 
-            ls -al
-            npm install
+            npm i
             npm run build
             cd ..
-            ls -al
+            # Zip the directory
             tar -C backend -czvf artifact.tar.gz .
-            #cd .circleci/ansible
-            #cp artifact.tar.gz  ~/
-      - run:
-          name: Checking the existence of inventory.txt && artifact.tar.gz file
-          command: |
+            mkdir -p ~/project/.circleci/ansible/roles/deploy/files/
+            mv artifact.tar.gz .circleci/ansible/roles/deploy/files/artifact.tar.gz
             cd .circleci/ansible
             echo "Contents  of the inventory.txt file is -------"
             cat inventory.txt
-            ansible-playbook -i inventory.txt deploy-backend.yml
+            ansible-playbook -i inventory.txt deploy-backend.yml -vvv
       - destroy-environment:
           workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
-      - revert-migrations:
-          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
-
+      #- revert-migrations:
+          #workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
   smoke-test:
     docker:
       - image: python:3.10-alpine3.16
