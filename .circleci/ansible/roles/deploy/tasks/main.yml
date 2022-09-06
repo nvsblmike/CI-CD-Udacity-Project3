@@ -24,18 +24,14 @@
       state: latest
       production: yes
 
-  - name: "extract artifact"
-    become: true
-    copy:
-      src: ~/project/artifact.tar.gz
-      dest: /home/ubuntu/backend_app_dir/artifact.tar.gz
+  - name: extract artifact
+    become: yes
+    unarchive:
+      src: ~/project/.circleci/ansible/roles/deploy/files/artifact.tar.gz
+      dest: .
 
-  - name: "start app"
-    become: true
+  - name: start app
+    become: yes
     shell: |
-      cd /home/ubuntu/backend_app_dir
-      tar xzvf artifact.tar.gz
-      npm install
-      npm run build
       pm2 stop all
       pm2 start npm -- start
