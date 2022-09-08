@@ -419,32 +419,26 @@ jobs:
       - image: amazon/aws-cli
     steps:
       - checkout
-      - run: 
-          name: Install dependencies
-          command: |
-            yum install tar gzip -y
-      - attach_workspace:
-          at: ~/
       - run:
-          name: Fetch Oldstack workflow ID
+          name: Get and Remove old stacks and files workflow id
           command: |
+            export OldWorkflowID=$(aws cloudformation list-exports \
+              --query "Exports[?Name==\`WorkflowID\`].Value" \
+              --no-paginate --output text)
+            echo OldWorkflowID: "${OldWorkflowID}"
+            echo CIRCLE_WORKFLOW_ID "${CIRCLE_WORKFLOW_ID:0:7}"
             export STACKS=($(aws cloudformation list-stacks --query "StackSummaries[*].StackName" \
-                     --stack-status-filter CREATE_COMPLETE --no-paginate --output text)) 
+            --stack-status-filter CREATE_COMPLETE --no-paginate --output text)) 
             echo Stack names: "${STACKS[@]}"
-            cat ~/OldWorkflowID.txt
-            export OldWorkflowID=$(cat ~/OldWorkflowID.txt)
-            echo OldWorkflowID: "${OldWorkflowID}" 
-            # echo CIRCLE_WORKFLOW_ID "${CIRCLE_WORKFLOW_ID:0:7}"
-            
-            export OldWorkflowID=$(cat ~/OldWorkflowID.txt)
-            if [[ "${CIRCLE_WORKFLOW_ID:0:7}" != "${OldWorkflowID}" ]]
+            if [[ "${STACKS[@]}" =~ "${OldWorkflowID}" ]]
             then
-              echo "Deleting old stack"
-              aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive || true
-              aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}" || true
-              aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"|| true
+              echo $OldWorkflowID $STACKS ${CIRCLE_WORKFLOW_ID:0:7}
+                aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
+                aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
+                aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
+            else
+            echo ------------ Cannot cleanup stacks --------------
             fi
-
 workflows:
   default:
     jobs:
